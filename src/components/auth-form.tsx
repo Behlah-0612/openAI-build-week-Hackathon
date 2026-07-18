@@ -1,5 +1,58 @@
 "use client";
+
+import { login, signup } from "@/app/login/actions";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-export function AuthForm({ demo }: { demo?: boolean }) { const [email, setEmail] = useState(demo ? "demo@pantrychef.app" : ""); const [password, setPassword] = useState(demo ? "PantryChefDemo!2026" : ""); const [mode, setMode] = useState<"login" | "signup">("login"); const [message, setMessage] = useState(""); const router = useRouter(); async function submit(e: React.FormEvent) { e.preventDefault(); setMessage(""); const supabase = createClient(); const result = mode === "login" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/dashboard` } }); if (result.error) setMessage(result.error.message); else { setMessage(mode === "signup" ? "Check your email to confirm your account." : "Welcome back!"); router.push("/dashboard"); router.refresh(); } } return <form onSubmit={submit} className="mt-8 grid gap-4"><input aria-label="Email" required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" className="rounded-xl border border-ink/15 bg-white px-4 py-4 outline-herb"/><input aria-label="Password" required minLength={8} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="rounded-xl border border-ink/15 bg-white px-4 py-4 outline-herb"/><button className="min-h-14 rounded-xl bg-herb px-4 font-semibold text-white" type="submit">{demo ? "Enter demo kitchen" : mode === "login" ? "Log in" : "Create account"}</button>{message && <p className="text-sm text-ink/70">{message}</p>}{!demo && <button type="button" onClick={() => setMode(mode === "login" ? "signup" : "login")} className="text-sm font-semibold text-herb">{mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}</button>}</form>; }
+
+export function AuthForm({ demo }: { demo?: boolean }) {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  const action = mode === "login" ? login : signup;
+
+  return (
+    <form action={action} className="mt-8 grid gap-4">
+      <input
+        aria-label="Email"
+        name="email"
+        required
+        type="email"
+        defaultValue={demo ? "demo@pantrychef.app" : ""}
+        placeholder="Email address"
+        className="rounded-xl border border-ink/15 bg-white px-4 py-4 outline-herb"
+      />
+
+      <input
+        aria-label="Password"
+        name="password"
+        required
+        minLength={8}
+        type="password"
+        defaultValue={demo ? "PantryChefDemo!2026" : ""}
+        placeholder="Password"
+        className="rounded-xl border border-ink/15 bg-white px-4 py-4 outline-herb"
+      />
+
+      <button
+        className="min-h-14 rounded-xl bg-herb px-4 font-semibold text-white"
+        type="submit"
+      >
+        {demo
+          ? "Enter demo kitchen"
+          : mode === "login"
+            ? "Log in"
+            : "Create account"}
+      </button>
+
+      {!demo && (
+        <button
+          type="button"
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="text-sm font-semibold text-herb"
+        >
+          {mode === "login"
+            ? "New here? Create an account"
+            : "Already have an account? Log in"}
+        </button>
+      )}
+    </form>
+  );
+}

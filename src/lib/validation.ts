@@ -3,3 +3,4 @@ export const pantryItemSchema = z.object({ name: z.string().trim().min(1).max(10
 export const receiptItemSchema = z.object({ name: z.string().trim().min(1).max(100), quantity: z.coerce.number().positive().max(9999).default(1), unit: z.string().trim().max(20).default("item"), price: z.coerce.number().min(0).max(100000).optional() });
 export const receiptSchema = z.object({ store_name: z.string().trim().max(100).nullable(), total_amount: z.number().min(0).max(100000).nullable(), items: z.array(receiptItemSchema).min(1).max(100) });
 export const receiptCommitSchema = receiptSchema.extend({ image_path: z.string().max(500).optional() });
+export const pantrySummarySchema = z.object({ expiring_soon: z.array(z.object({ name: z.string(), expires_at: z.string().nullable(), note: z.string() })).max(10), low_stock_staples: z.array(z.string()).max(10), total_estimated_value: z.number().min(0), headline: z.string().max(160) });

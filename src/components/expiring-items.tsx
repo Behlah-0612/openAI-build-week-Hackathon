@@ -28,7 +28,7 @@ export function ExpiringItems({ initialItems }: { initialItems: PantryItem[] }) 
       });
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      if (!response.ok || data.deletedId !== id) {
         throw new Error(data.error ?? "Could not discard this item.");
       }
 

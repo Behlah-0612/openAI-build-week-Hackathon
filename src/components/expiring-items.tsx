@@ -14,11 +14,14 @@ export function ExpiringItems({ initialItems }: { initialItems: PantryItem[] }) 
   const [items, setItems] = useState(initialItems);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
 
   async function discardItem(id: string) {
     setDiscardingId(id);
     setError("");
+    setSuccess("");
+    const itemName = items.find((item) => item.id === id)?.name ?? "Item";
 
     try {
       const response = await fetch("/api/pantry", {
@@ -33,6 +36,7 @@ export function ExpiringItems({ initialItems }: { initialItems: PantryItem[] }) 
       }
 
       setItems((current) => current.filter((item) => item.id !== id));
+      setSuccess(`${itemName} was discarded and removed from your inventory.`);
       router.refresh();
     } catch (error) {
       setError(
@@ -81,6 +85,7 @@ export function ExpiringItems({ initialItems }: { initialItems: PantryItem[] }) 
       </ul>
 
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+      {success && <p className="mt-3 text-sm font-medium text-herb">{success}</p>}
     </>
   );
 }

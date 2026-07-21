@@ -4,7 +4,7 @@ PantryChef is a mobile-first PWA that turns a household pantry into practical re
 
 ## Run locally
 
-1. Create a Supabase project, then run `supabase/migrations/0001_pantrychef.sql` in its SQL editor.
+1. Create a Supabase project, then run `supabase/migrations/0001_pantrychef.sql` and `supabase/migrations/0002_create_user_profile_trigger.sql` in order in its SQL editor. The second migration creates a profile row for every Supabase Auth user, which is required for per-user pantry ownership.
 2. Copy `.env.example` to `.env.local` and complete every value. Keep `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `YOUTUBE_API_KEY`, and `CRON_SECRET` server-side only.
 3. Run `npm install`, then `npm run seed` to create/reset the demo data.
 4. Run `npm run dev` and open the local URL.

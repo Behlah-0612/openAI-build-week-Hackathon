@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { ensureUserProfile } from "@/lib/ensure-user-profile";
 import { pantryItemSchema } from "@/lib/validation";
 
 const deletePantryItemSchema = z.object({ id: z.string().uuid() });
@@ -24,8 +25,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { error: profileError } = await ensureUserProfile(supabase, user);
+  if (profileError) {
+    console.error("Could not prepare user profile before pantry insert:", profileError);
+    return NextResponse.json(
+      { error: `Could not prepare your PantryChef profile: ${profileError.message}` },
+      { status: 400 }
+    );
+  }
+
   const { error } = await supabase.from("pantry_items").insert({
     ...body.data,
+    purchased_at: body.data.purchased_at || null,
     expires_at: body.data.expires_at || null,
     user_id: user.id,
     source: "manual",

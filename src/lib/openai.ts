@@ -2,5 +2,50 @@ import OpenAI from "openai";
 export const getOpenAI = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export const AI_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6";
 export const RECEIPT_SCHEMA = { name: "receipt_parse", strict: true, schema: { type: "object", additionalProperties: false, properties: { store_name: { type: ["string", "null"] }, total_amount: { type: ["number", "null"] }, items: { type: "array", items: { type: "object", additionalProperties: false, properties: { name: { type: "string" }, quantity: { type: "number" }, unit: { type: "string" }, price: { type: ["number", "null"] } }, required: ["name", "quantity", "unit", "price"] } } }, required: ["store_name", "total_amount", "items"] } } as const;
-export const PANTRY_SUMMARY_SCHEMA = { name: "pantry_summary", strict: true, schema: { type: "object", additionalProperties: false, properties: { expiring_soon: { type: "array", items: { type: "object", additionalProperties: false, properties: { name: { type: "string" }, expires_at: { type: ["string", "null"] }, note: { type: "string" } }, required: ["name", "expires_at", "note"] } }, low_stock_staples: { type: "array", items: { type: "string" } }, total_estimated_value: { type: "number" }, headline: { type: "string" } }, required: ["expiring_soon", "low_stock_staples", "total_estimated_value", "headline"] } } as const;
+export const PANTRY_SUMMARY_SCHEMA = {
+  name: "pantry_summary",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      expiring_soon: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: { name: { type: "string" }, expires_at: { type: ["string", "null"] }, note: { type: "string" } },
+          required: ["name", "expires_at", "note"],
+        },
+      },
+      low_stock_staples: { type: "array", items: { type: "string" } },
+      total_estimated_value: { type: "number" },
+      headline: { type: "string" },
+      quick_meals: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            title: { type: "string" },
+            time_minutes: { type: "integer" },
+            description: { type: "string" },
+            use_from_pantry: { type: "array", items: { type: "string" } },
+            buy_to_complete: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: { name: { type: "string" }, reason: { type: "string" } },
+                required: ["name", "reason"],
+              },
+            },
+          },
+          required: ["title", "time_minutes", "description", "use_from_pantry", "buy_to_complete"],
+        },
+      },
+    },
+    required: ["expiring_soon", "low_stock_staples", "total_estimated_value", "headline", "quick_meals"],
+  },
+} as const;
 export const RECIPE_OPTIONS_SCHEMA = { name: "recipe_options", strict: true, schema: { type: "object", additionalProperties: false, properties: { recipes: { type: "array", items: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, time_minutes: { type: "integer" }, estimated_cost: { type: "number" }, ingredients: { type: "array", items: { type: "object", additionalProperties: false, properties: { name: { type: "string" }, amount: { type: "string" }, have: { type: "boolean" } }, required: ["name", "amount", "have"] } }, steps: { type: "array", items: { type: "string" } }, missing_ingredients: { type: "array", items: { type: "string" } } }, required: ["title", "time_minutes", "estimated_cost", "ingredients", "steps", "missing_ingredients"] } } }, required: ["recipes"] } } as const;

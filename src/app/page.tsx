@@ -1,2 +1,22 @@
 import Link from "next/link";
-export default function Home() { return <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-6"><p className="mb-3 text-sm font-semibold uppercase tracking-widest text-herb">PantryChef</p><h1 className="text-5xl font-bold leading-tight">Cook more. Waste less.</h1><p className="mt-5 text-lg text-ink/70">A personal chef for everything already in your kitchen.</p><div className="mt-10 grid gap-3"><Link className="rounded-2xl bg-herb px-5 py-4 text-center font-semibold text-white" href="/login">Get started</Link><Link className="rounded-2xl border border-herb px-5 py-4 text-center font-semibold text-herb" href="/login?demo=1">Try the demo</Link></div></main>; }
+import { ChefHat } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+
+export default function Home() {
+  return (
+    <main className="flex min-h-[100dvh] flex-col justify-center p-6">
+      <ChefHat className="text-primary" size={32} aria-hidden="true" />
+      <p className="mt-4 text-sm font-semibold uppercase tracking-widest text-primary">PantryChef</p>
+      <h1 className="mt-2 text-4xl font-bold leading-tight tracking-tight text-text">Cook more. Waste less.</h1>
+      <p className="mt-5 text-lg text-muted-text">A personal chef for everything already in your kitchen.</p>
+      <div className="mt-10 grid gap-3">
+        <Link href="/login" className={buttonVariants({ size: "lg" })}>
+          Get started
+        </Link>
+        <Link href="/login?demo=1" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          Try the demo
+        </Link>
+      </div>
+    </main>
+  );
+}

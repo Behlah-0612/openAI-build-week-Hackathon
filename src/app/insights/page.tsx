@@ -1,3 +1,134 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-export default async function Insights() { const supabase = await createClient(); const [receipts, recipes, expired] = await Promise.all([supabase.from("receipts").select("total_amount,parsed_at").order("parsed_at", { ascending: false }).limit(50), supabase.from("recipes").select("id").limit(200), supabase.from("pantry_items").select("estimated_price").lt("expires_at", new Date().toISOString().slice(0, 10))]); const weekly = (receipts.data ?? []).reduce<Record<string, number>>((acc, r) => { const key = (r.parsed_at ?? new Date().toISOString()).slice(0, 10); acc[key] = (acc[key] ?? 0) + Number(r.total_amount ?? 0); return acc; }, {}); const total = Object.values(weekly).reduce((a, b) => a + b, 0); const waste = (expired.data ?? []).reduce((sum, i) => sum + Number(i.estimated_price ?? 0), 0); const max = Math.max(...Object.values(weekly), 1); return <main className="p-5"><Link href="/dashboard" className="text-sm font-semibold text-herb">← Home</Link><p className="mt-5 text-sm font-semibold text-herb">COST & TIME</p><h1 className="mt-1 text-3xl font-bold">Kitchen insights</h1><div className="mt-6 grid grid-cols-2 gap-3"><article className="rounded-2xl bg-white p-4"><p className="text-sm text-ink/60">Receipt spend</p><p className="mt-1 text-2xl font-bold">${total.toFixed(0)}</p></article><article className="rounded-2xl bg-white p-4"><p className="text-sm text-ink/60">Meals saved</p><p className="mt-1 text-2xl font-bold">{recipes.data?.length ?? 0}</p></article><article className="rounded-2xl bg-orange-50 p-4"><p className="text-sm text-orange-800/70">Potential waste</p><p className="mt-1 text-2xl font-bold text-orange-900">${waste.toFixed(0)}</p></article><article className="rounded-2xl bg-herb/10 p-4"><p className="text-sm text-herb/70">Quick-recipe time</p><p className="mt-1 text-2xl font-bold text-herb">~{(recipes.data?.length ?? 0) * 20} min</p></article></div><section className="mt-7 rounded-3xl bg-white p-5"><h2 className="font-bold">Receipt spend over time</h2>{Object.keys(weekly).length ? <div className="mt-5 flex h-40 items-end gap-3">{Object.entries(weekly).slice(0, 7).reverse().map(([date, amount]) => <div className="flex flex-1 flex-col items-center gap-2" key={date}><div className="w-full rounded-t-lg bg-herb" style={{ height: `${Math.max((amount / max) * 115, 8)}px` }}/><span className="text-[10px] text-ink/50">{date.slice(5)}</span></div>)}</div> : <p className="mt-3 text-sm text-ink/60">Scan receipts to see your spending trend.</p>}</section><p className="mt-5 text-sm text-ink/60">Waste is the value of expired items still marked in your pantry. Keeping your inventory current makes this more accurate.</p></main>; }
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
+
+function dayKey(date: Date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(value);
+}
+
+function daysAgo(days: number) {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - days);
+  return date;
+}
+
+function StatCard({
+  label,
+  value,
+  caption,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  caption: string;
+  tone?: "default" | "warning" | "error";
+}) {
+  return (
+    <Card
+      padding="md"
+      variant={tone === "default" ? "default" : undefined}
+      className={cn(tone === "warning" && "bg-warning-surface", tone === "error" && "bg-error-surface")}
+    >
+      <p className={cn("text-sm", tone === "default" ? "text-muted-text" : tone === "warning" ? "text-warning/80" : "text-error/80")}>{label}</p>
+      <p className={cn("mt-1 text-2xl font-bold", tone === "warning" ? "text-warning" : tone === "error" ? "text-error" : "text-text")}>{value}</p>
+      <p className={cn("mt-1 text-xs", tone === "default" ? "text-muted-text" : tone === "warning" ? "text-warning/80" : "text-error/80")}>{caption}</p>
+    </Card>
+  );
+}
+
+export default async function Insights() {
+  const supabase = await createClient();
+  const [receiptsResult, recipesResult, pantryResult] = await Promise.all([
+    supabase.from("receipts").select("total_amount,parsed_at").order("parsed_at", { ascending: false }).limit(200),
+    supabase.from("recipes").select("id,time_minutes,created_at").order("created_at", { ascending: false }).limit(200),
+    supabase.from("pantry_items").select("estimated_price,expires_at").limit(500),
+  ]);
+
+  const today = dayKey(new Date());
+  const sevenDaysAgo = dayKey(daysAgo(6));
+  const fourteenDaysAgo = dayKey(daysAgo(13));
+  const soon = dayKey(new Date(Date.now() + 3 * 86_400_000));
+  const dailySpend = Array.from({ length: 7 }, (_, index) => {
+    const date = daysAgo(6 - index);
+    return { key: dayKey(date), label: new Intl.DateTimeFormat("en", { weekday: "short" }).format(date), amount: 0 };
+  });
+  const dayIndex = new Map(dailySpend.map((day, index) => [day.key, index]));
+
+  let currentSpend = 0;
+  let previousSpend = 0;
+  for (const receipt of receiptsResult.data ?? []) {
+    const date = (receipt.parsed_at ?? "").slice(0, 10);
+    const amount = Number(receipt.total_amount ?? 0);
+    if (date >= sevenDaysAgo && date <= today) {
+      currentSpend += amount;
+      const index = dayIndex.get(date);
+      if (index !== undefined) dailySpend[index].amount += amount;
+    } else if (date >= fourteenDaysAgo && date < sevenDaysAgo) {
+      previousSpend += amount;
+    }
+  }
+
+  const pantry = pantryResult.data ?? [];
+  const pantryValue = pantry.reduce((total, item) => total + Number(item.estimated_price ?? 0), 0);
+  const potentialWaste = pantry.filter((item) => item.expires_at && item.expires_at < today).reduce((total, item) => total + Number(item.estimated_price ?? 0), 0);
+  const expiringSoon = pantry.filter((item) => item.expires_at && item.expires_at >= today && item.expires_at <= soon);
+  const savedRecipes = recipesResult.data ?? [];
+  const savedRecipeMinutes = savedRecipes.reduce((total, recipe) => total + Number(recipe.time_minutes ?? 0), 0);
+  const receiptCount = receiptsResult.data?.length ?? 0;
+  const averageReceipt = receiptCount ? (receiptsResult.data ?? []).reduce((total, receipt) => total + Number(receipt.total_amount ?? 0), 0) / receiptCount : 0;
+  const maxDailySpend = Math.max(...dailySpend.map((day) => day.amount), 1);
+  const spendChange = previousSpend ? ((currentSpend - previousSpend) / previousSpend) * 100 : null;
+
+  return (
+    <main className="p-5">
+      <PageHeader backHref="/dashboard" backLabel="Home" eyebrow="Cost & time" title="Kitchen insights" description="Live totals from your receipts, pantry, and saved recipes." />
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <StatCard label="Last 7 days" value={formatMoney(currentSpend)} caption={spendChange === null ? "No prior-week receipts" : `${spendChange >= 0 ? "+" : ""}${spendChange.toFixed(0)}% vs. prior 7 days`} />
+        <StatCard label="Pantry value" value={formatMoney(pantryValue)} caption={`${pantry.length} tracked item${pantry.length === 1 ? "" : "s"}`} />
+        <StatCard label="Expiring in 3 days" value={String(expiringSoon.length)} caption="Use these first" tone="warning" />
+        <StatCard label="Potential waste" value={formatMoney(potentialWaste)} caption="Expired items still listed" tone="error" />
+      </div>
+
+      <Card padding="lg" className="mt-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-bold text-text">Receipt spend, last 7 days</h2>
+          <span className="text-sm font-semibold text-primary">{formatMoney(currentSpend)}</span>
+        </div>
+        <div className="mt-5 flex h-40 items-end gap-2">
+          {dailySpend.map((day) => (
+            <div className="flex flex-1 flex-col items-center gap-2" key={day.key}>
+              <div
+                className="w-full rounded-t-md bg-primary transition-all"
+                style={{ height: `${day.amount ? Math.max((day.amount / maxDailySpend) * 115, 8) : 3}px` }}
+                title={`${day.label}: ${formatMoney(day.amount)}`}
+              />
+              <span className="text-[10px] text-muted-text">{day.label}</span>
+            </div>
+          ))}
+        </div>
+        {!currentSpend && <p className="mt-4 text-sm text-muted-text">No receipt spend was logged in the last seven days. Scan a receipt to start this chart.</p>}
+      </Card>
+
+      <section className="mt-4 grid grid-cols-2 gap-3">
+        <Card padding="md" className="bg-primary/10">
+          <p className="text-sm text-primary/80">Saved recipes</p>
+          <p className="mt-1 text-2xl font-bold text-primary">{savedRecipes.length}</p>
+          <p className="mt-1 text-xs text-primary/80">{savedRecipeMinutes ? `${savedRecipeMinutes} planned cooking min` : "No recipe time saved yet"}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-sm text-muted-text">Receipt average</p>
+          <p className="mt-1 text-2xl font-bold text-text">{formatMoney(averageReceipt)}</p>
+          <p className="mt-1 text-xs text-muted-text">Across {receiptCount} receipt{receiptCount === 1 ? "" : "s"}</p>
+        </Card>
+      </section>
+    </main>
+  );
+}
